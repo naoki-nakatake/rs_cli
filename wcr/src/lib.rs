@@ -24,19 +24,27 @@ pub struct FileInfo {
     num_chars: usize,
 }
 
-pub fn count(file: impl BufRead) -> MyResult<FileInfo> {
+pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
     let mut num_lines = 0;
     let mut num_words = 0;
     let mut num_bytes = 0;
     let mut num_chars = 0;
 
-    for line in file.lines() {
-        let mut line = line.unwrap();
+    let mut buf = Vec::new();
+
+    loop {
+        buf.clear();
+        let bytes_in_line = file.read_until(b'\n', &mut buf).unwrap();
+
+        if bytes_in_line == 0 {
+            break;
+        }
         num_lines += 1;
+        num_bytes += bytes_in_line;
+
+        let line = String::from_utf8_lossy(&mut buf);
         num_words += line.to_owned().split_ascii_whitespace().count();
-        num_bytes += line.to_owned().into_bytes().into_iter().count();
-        line.retain(|e| !e.is_ascii_whitespace());
-        num_chars += line.len();
+        num_chars += buf.iter().filter(|e| e.is_ascii()).count();
     }
 
     Ok(FileInfo {
